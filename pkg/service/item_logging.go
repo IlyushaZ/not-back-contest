@@ -1,0 +1,47 @@
+package service
+
+import (
+	"context"
+	"log/slog"
+	"time"
+)
+
+type ItemLogging struct {
+	Item
+}
+
+func (il *ItemLogging) Checkout(ctx context.Context, userID, itemID int) (code string, err error) {
+	defer func(t0 time.Time) {
+		log := slog.With(
+			slog.Int("user_id", userID),
+			slog.Int("item_id", itemID),
+			slog.String("resp", "HIDDEN"),
+			slog.Duration("delay", time.Since(t0)),
+		)
+
+		if err != nil {
+			log.Error("failed to checkout item", slog.Any("error", err))
+		} else {
+			log.Debug("item checked out")
+		}
+	}(time.Now())
+
+	return il.Item.Checkout(ctx, userID, itemID)
+}
+
+func (il *ItemLogging) Purchase(ctx context.Context, code string) (err error) {
+	defer func(t0 time.Time) {
+		log := slog.With(
+			slog.Any("code", code),
+			slog.Duration("delay", time.Since(t0)),
+		)
+
+		if err != nil {
+			log.Error("failed to purchase item", slog.Any("error", err))
+		} else {
+			log.Debug("item purchased")
+		}
+	}(time.Now())
+
+	return il.Item.Purchase(ctx, code)
+}

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17.4
+    command: -c 'max_connections=250'
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=develop
+      - POSTGRES_PASSWORD=develop
+      - POSTGRES_DB=notbackcontest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U develop -d ${POSTGRES_DB:-notbackcontest}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.0
+    ports:
+      - "6379:6379"
+
+  server:
+    build:
+      context: .
+    image: not-back-contest
+    ports:
+      - "8000:8000"
+    command: ./server --postgresAddr=postgres --redisAddr=redis --logLevel=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # it may be k8s' CronJob in production env
+  items-generator-job:
+    profiles: [''] # run only when docker-compose is run without --perftest flag
+    build:
+      context: .
+    environment:
+      POSTGRES_ADDR: postgres
+    image: not-back-contest
+    command: crond -f # crontab is already set up during build process
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  items-generator:
+    profiles: ['perftest']
+    build:
+      context: .
+    environment:
+      POSTGRES_ADDR: postgres
+    image: not-back-contest
+    command: ./items-generator --salesCount=5 # 4 sales forward
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    restart: on-failure
+    image: migrate/migrate:v4.18.3
+    volumes:
+      - ./migrations:/migrations
+    command: [ "-path", "/migrations", "-database",  "postgres://develop:develop@postgres:5432/notbackcontest?sslmode=disable", "up" ]
+    depends_on:
+      postgres:
+        condition: service_healthy
