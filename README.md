@@ -74,3 +74,6 @@ To run it, you will need to install [vegeta](https://github.com/tsenart/vegeta) 
 chmod +x ./test/generate_targets.sh ./test/test_checkout.sh
 ./test/test_checkout.sh
 ```
+
+## Easter egg
+Press `ctrl-shift-f` in your IDE to see the things I didn't have enough time to implement.
