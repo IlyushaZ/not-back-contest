@@ -1,0 +1,5 @@
+results.bin
+/cmd/server/server
+/cmd/items-generator/items-generator
+/bin
+.DS_Store

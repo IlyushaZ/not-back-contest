@@ -40,7 +40,7 @@ services:
 
   # it may be k8s' CronJob in production env
   items-generator-job:
-    profiles: [''] # run only when docker-compose is run without --perftest flag
+    profiles: [''] # run only when docker-compose is run without --profile perftest
     build:
       context: .
     environment:
