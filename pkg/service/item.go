@@ -16,7 +16,7 @@ type Item interface {
 }
 
 // ItemGeneric represents an implementation of Item interface containing core logics
-// which can be wrapped via implementations contained in package wrappers.
+// which can be wrapped in other implementations contained in item_*.go.
 type ItemGeneric struct {
 	ItemRepository  database.ItemRepository
 	CheckoutTimeout time.Duration
