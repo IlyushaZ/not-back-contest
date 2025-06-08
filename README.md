@@ -66,6 +66,11 @@ The server will be accessible on port `:8000`.
    	Number of sales to generate. (default 1)
 ```
 
+## Project structure
+The project follows a **layered architecture** on service layer, which means that the `service` package defines an **interface for working with items**, along with a **base implementation** that contains the core application logic. Additional implementations wrap this base service, allowing features like **logging**, **caching**, and **rate limiting** to be added transparently—**without mixing them with the business logic**. This separation of concerns makes the system more modular, testable, and easier to extend.
+
+Unfortunately, the checkout logic had to be placed in the database package, as it must be executed transactionally. While there are alternative ways to implement this, I personally find those approaches ugly, so I decided to keep the transactional logic close to the data layer.
+
 ## Performance tests
 I've only implemented basic test on checkout due to lack of time 👉👈. But I am pretty sure my app is ⚡***BLAZINGLY FAST***⚡.
 
