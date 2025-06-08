@@ -3,7 +3,7 @@
 This service provides API for checking out and purchasing items.
 
 ## Architecture description (please read me)
-The system uses PostgreSQL as the source of truth, with all critical operations—such as item reservations, checkout validation, and purchase confirmation—executed within PostgreSQL transactions to ensure strong consistency and data integrity.
+The system is designed with a strong focus on data consistency and horizontal scalability. It uses PostgreSQL as the source of truth, with all critical operations—such as item reservations, checkout validation, and purchase confirmation—executed within PostgreSQL transactions to ensure strong consistency and data integrity.
 
 Redis is used purely as a caching layer, for optimizing read-heavy operations such as checking item availability or user quotas. However, no core application logic depends on Redis, meaning that if Redis becomes unavailable or fails, the system will continue to function correctly using only the PostgreSQL backend.
 
