@@ -12,7 +12,7 @@ total_requests=10000
 
 for ((i=1; i<=total_requests; i++)); do
     # 10% chance to take repeating id from generated ones
-    if (( RANDOM % 10 == 0 )) && (( uniques_count > 0 )); then
+    if (( RANDOM % 3 == 0 )) && (( uniques_count > 0 )); then
         idx=$(( RANDOM % uniques_count ))
         item_id=${used_list[idx]}
     else

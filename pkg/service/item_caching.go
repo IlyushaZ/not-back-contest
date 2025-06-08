@@ -64,6 +64,7 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 				return ccv.code, nil
 			}
 
+			slog.Debug("someone cooked here")
 			return "", model.ErrItemUnavailable
 		}
 	}
@@ -74,12 +75,15 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 		return
 	}
 
-	// TODO: what if we move this to separate goroutine?
 	ccv := checkoutCacheValue{now.Add(ic.CheckoutTimeout), userID, code}
 
-	if err = ic.Redis.Set(ctx, key, ccv.String(), ic.CheckoutTimeout).Err(); err != nil {
-		slog.Error("can't set checkout info in redis", slog.Any("error", err))
-	}
+	go func() {
+		// i guess we can not really concern about atomicity here,
+		// because only one user buying this item will reach this code section at a time
+		if err = ic.Redis.Set(ctx, key, ccv.String(), ic.CheckoutTimeout).Err(); err != nil {
+			slog.Error("can't set checkout info in redis", slog.Any("error", err))
+		}
+	}()
 
 	return
 }

@@ -75,5 +75,7 @@ chmod +x ./test/generate_targets.sh ./test/test_checkout.sh
 ./test/test_checkout.sh
 ```
 
+It starts the service with dependencies via `docker compose` and runs script `test/generate_targets.sh` which generate URLs with different `item_id`'s and `user_id`'s. It generates `item_id`'s in such way that some identifiers repeat, which, IMO, looks like real usage. After that, `vegeta attack` is run with generated `targets.txt` given as `-target` argument.
+
 ## Easter egg
 Press `ctrl-shift-f` in your IDE to see the things I didn't have enough time to implement.
