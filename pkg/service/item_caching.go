@@ -25,15 +25,13 @@ type ItemCaching struct {
 	CheckoutTimeout time.Duration
 }
 
-// timestamp|userID|code|(status?)
-type checkoutCacheValue struct {
+type checkoutCacheVal struct {
 	until  time.Time
 	userID int
 	code   string
 }
 
-// checkouts:item_id -> timestamp|userID|code|(status?)
-func (c checkoutCacheValue) String() string {
+func (c checkoutCacheVal) String() string {
 	return strconv.Itoa(c.userID) + "|" + strconv.FormatInt(c.until.Unix(), 10) + "|" + c.code
 }
 
@@ -75,7 +73,7 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 		return
 	}
 
-	ccv := checkoutCacheValue{now.Add(ic.CheckoutTimeout), userID, code}
+	ccv := checkoutCacheVal{now.Add(ic.CheckoutTimeout), userID, code}
 
 	go func() {
 		// i guess we can not really concern about atomicity here,
@@ -92,25 +90,25 @@ func checkoutCacheKey(itemID int) string {
 	return checkoutsKeyPrefix + strconv.Itoa(itemID)
 }
 
-func parseCheckoutCacheVal(val string) (checkoutCacheValue, error) {
+func parseCheckoutCacheVal(val string) (checkoutCacheVal, error) {
 	split := strings.Split(val, "|")
 	if len(split) != 3 {
-		return checkoutCacheValue{}, fmt.Errorf("expected val to consist of 3 parts, got %d", len(split))
+		return checkoutCacheVal{}, fmt.Errorf("expected val to consist of 3 parts, got %d", len(split))
 	}
 
 	var (
-		ccv checkoutCacheValue
+		ccv checkoutCacheVal
 		err error
 	)
 
 	ccv.userID, err = strconv.Atoi(split[0])
 	if err != nil {
-		return checkoutCacheValue{}, fmt.Errorf("can't parse userID: %w", err)
+		return checkoutCacheVal{}, fmt.Errorf("can't parse userID: %w", err)
 	}
 
 	ts, err := strconv.ParseInt(split[1], 10, 64)
 	if err != nil {
-		return checkoutCacheValue{}, fmt.Errorf("can't parse timestamp: %w", err)
+		return checkoutCacheVal{}, fmt.Errorf("can't parse timestamp: %w", err)
 	}
 
 	ccv.until = time.Unix(ts, 0)

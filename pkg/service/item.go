@@ -11,7 +11,7 @@ import (
 
 type Item interface {
 	Checkout(ctx context.Context, userID, itemID int) (string, error)
-	Purchase(ctx context.Context, code string) error
+	Purchase(ctx context.Context, code model.CheckoutCode) error
 	ListPage(ctx context.Context, pageNum, pageSize int) ([]model.Item, int, error)
 }
 
@@ -32,13 +32,8 @@ func (ig *ItemGeneric) Checkout(ctx context.Context, userID, itemID int) (string
 	return code, nil
 }
 
-func (ig *ItemGeneric) Purchase(ctx context.Context, code string) error {
-	cc := model.CheckoutCode{}
-	if err := cc.FromString(code); err != nil {
-		return fmt.Errorf("can't parse code: %w", err)
-	}
-
-	return ig.ItemRepository.Purchase(ctx, cc)
+func (ig *ItemGeneric) Purchase(ctx context.Context, code model.CheckoutCode) error {
+	return ig.ItemRepository.Purchase(ctx, code)
 }
 
 func (ig *ItemGeneric) ListPage(ctx context.Context, pageNum, pageSize int) ([]model.Item, int, error) {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/IlyushaZ/not-back-contest/pkg/model"
 )
 
 type ItemLogging struct {
@@ -29,10 +31,10 @@ func (il *ItemLogging) Checkout(ctx context.Context, userID, itemID int) (code s
 	return il.Item.Checkout(ctx, userID, itemID)
 }
 
-func (il *ItemLogging) Purchase(ctx context.Context, code string) (err error) {
+func (il *ItemLogging) Purchase(ctx context.Context, code model.CheckoutCode) (err error) {
 	defer func(t0 time.Time) {
 		log := slog.With(
-			slog.Any("code", code),
+			slog.String("code", code.String()),
 			slog.Duration("delay", time.Since(t0)),
 		)
 

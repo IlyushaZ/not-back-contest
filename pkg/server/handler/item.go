@@ -33,7 +33,7 @@ func ItemCheckout(svc service.Item) http.HandlerFunc {
 			return
 		}
 
-		resp, err := svc.Checkout(r.Context(), userID, itemID)
+		code, err := svc.Checkout(r.Context(), userID, itemID)
 		switch {
 		case errors.Is(err, model.ErrSaleExpired) || errors.Is(err, model.ErrItemUnavailable):
 			http.Error(w, err.Error(), http.StatusPreconditionFailed)
@@ -47,8 +47,9 @@ func ItemCheckout(svc service.Item) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			http.Error(w, fmt.Sprintf("can't encode response: %v", err), http.StatusInternalServerError)
+		resp := []byte(fmt.Sprintf(`{"code":"%s"}`, code))
+		if _, err := w.Write(resp); err != nil {
+			http.Error(w, fmt.Sprintf("can't write response: %v", err), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -67,7 +68,13 @@ func ItemPurchase(svc service.Item) http.HandlerFunc {
 			return
 		}
 
-		err := svc.Purchase(r.Context(), code)
+		var cc model.CheckoutCode
+		if err := cc.FromString(code); err != nil {
+			http.Error(w, fmt.Sprintf("invalid code: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		err := svc.Purchase(r.Context(), cc)
 		switch {
 		case errors.Is(err, model.ErrCheckoutExpired), errors.Is(err, model.ErrSaleExpired):
 			http.Error(w, err.Error(), http.StatusPreconditionFailed)

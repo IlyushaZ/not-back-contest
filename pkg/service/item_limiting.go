@@ -41,21 +41,15 @@ func (ic *ItemLimiting) Checkout(ctx context.Context, userID, itemID int) (code 
 	return ic.Item.Checkout(ctx, userID, itemID)
 }
 
-func (ic *ItemLimiting) Purchase(ctx context.Context, code string) (err error) {
-	cc := model.CheckoutCode{}
-	if err := cc.FromString(code); err != nil {
-		return fmt.Errorf("can't parse code: %w", err)
+func (ic *ItemLimiting) Purchase(ctx context.Context, code model.CheckoutCode) (err error) {
+	err = ic.Item.Purchase(ctx, code)
+	if err != nil {
+		return
 	}
 
-	defer func() {
-		if err != nil {
-			return
-		}
+	if _, err := ic.Limiter.Increment(ctx, code.UserID); err != nil {
+		slog.Error("can't increment user's limit", slog.Any("error", err))
+	}
 
-		if _, err := ic.Limiter.Increment(ctx, cc.UserID); err != nil {
-			slog.Error("can't increment user's limit", slog.Any("error", err))
-		}
-	}()
-
-	return ic.Item.Purchase(ctx, code)
+	return err
 }
