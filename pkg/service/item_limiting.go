@@ -42,6 +42,19 @@ func (ic *ItemLimiting) Checkout(ctx context.Context, userID, itemID int) (code 
 }
 
 func (ic *ItemLimiting) Purchase(ctx context.Context, code model.CheckoutCode) (err error) {
+	exceeded, err := ic.Limiter.LimitExceeded(ctx, code.UserID)
+	if err != nil {
+		if !ic.FailOpen {
+			return fmt.Errorf("can't check if limit exceeded: %w", err)
+		}
+
+		slog.Error("can't check if limit exceeded", slog.Any("error", err))
+	}
+
+	if exceeded {
+		return ErrLimitExceeded
+	}
+
 	err = ic.Item.Purchase(ctx, code)
 	if err != nil {
 		return

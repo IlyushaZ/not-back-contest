@@ -10,7 +10,7 @@ import (
 
 const (
 	DefaultCheckoutTimeout = 3 * time.Minute
-	CheckoutCodeLen        = 6
+	CheckoutCodeLen        = 8
 )
 
 type Checkout struct {
@@ -27,7 +27,7 @@ type CheckoutCode struct {
 	Rand   string
 }
 
-func (c *CheckoutCode) WithRand() {
+func (c *CheckoutCode) GenerateRand() {
 	c.Rand = randAlphaNum(CheckoutCodeLen)
 }
 

@@ -97,7 +97,7 @@ func (i *ItemDatabase) Checkout(ctx context.Context, userID, itemID int, checkou
 
 		// generate code
 		mc := model.CheckoutCode{UserID: userID, ItemID: itemID}
-		mc.WithRand()
+		mc.GenerateRand()
 		code = mc.String() // code to return outside
 
 		q = `

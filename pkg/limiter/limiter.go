@@ -51,6 +51,6 @@ func (l *Limiter) LimitExceeded(ctx context.Context, userID int) (bool, error) {
 // It consists of user's ID concatenated to current timestamp rounded down to current hour,
 // which is the start of the sale.
 func userCounterKey(userID int) string {
-	now := time.Now().Truncate(time.Hour)
-	return cacheKeyPrefix + strconv.Itoa(userID) + ":" + now.String()
+	now := time.Now().Truncate(time.Hour).Unix()
+	return cacheKeyPrefix + strconv.Itoa(userID) + ":" + strconv.FormatInt(now, 10)
 }
