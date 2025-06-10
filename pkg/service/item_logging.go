@@ -18,7 +18,7 @@ func (il *ItemLogging) Checkout(ctx context.Context, userID, itemID int) (code s
 			slog.Int("user_id", userID),
 			slog.Int("item_id", itemID),
 			slog.String("resp", "HIDDEN"),
-			slog.Duration("delay", time.Since(t0)),
+			slog.String("delay", time.Since(t0).String()),
 		)
 
 		if err != nil {
@@ -35,7 +35,7 @@ func (il *ItemLogging) Purchase(ctx context.Context, code model.CheckoutCode) (e
 	defer func(t0 time.Time) {
 		log := slog.With(
 			slog.String("code", code.String()),
-			slog.Duration("delay", time.Since(t0)),
+			slog.String("delay", time.Since(t0).String()),
 		)
 
 		if err != nil {

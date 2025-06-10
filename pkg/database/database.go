@@ -21,10 +21,10 @@ func New(addr, database, user, password string) (db *sql.DB, close func() error,
 		return nil, nil, err
 	}
 
-	// these params are set assuming that max_connections are set to 200-250
-	db.SetMaxOpenConns(150)
-	db.SetMaxIdleConns(75)
+	db.SetMaxOpenConns(200)
+	db.SetMaxIdleConns(50)
 	db.SetConnMaxLifetime(15 * time.Minute)
+	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {
 		return nil, nil, err

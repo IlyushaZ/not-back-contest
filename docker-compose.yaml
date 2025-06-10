@@ -1,9 +1,12 @@
 services:
   postgres:
     image: postgres:17.4
-    command: -c 'max_connections=250'
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     ports:
       - "5432:5432"
+    volumes:
+      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
+      # - ./data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=develop
       - POSTGRES_PASSWORD=develop
