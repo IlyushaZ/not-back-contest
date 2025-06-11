@@ -24,7 +24,7 @@ func (il *ItemLogging) Checkout(ctx context.Context, userID, itemID int) (code s
 		if err != nil {
 			log.Error("failed to checkout item", slog.Any("error", err))
 		} else {
-			log.Debug("item checked out")
+			log.Debug("called Item.Checkout")
 		}
 	}(time.Now())
 
@@ -41,7 +41,7 @@ func (il *ItemLogging) Purchase(ctx context.Context, code model.CheckoutCode) (e
 		if err != nil {
 			log.Error("failed to purchase item", slog.Any("error", err))
 		} else {
-			log.Debug("item purchased")
+			log.Debug("called Item.Purchase")
 		}
 	}(time.Now())
 

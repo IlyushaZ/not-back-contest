@@ -57,7 +57,7 @@ func New() *Config {
 	flag.DurationVar(&c.CheckoutsFlushInterval, "checkoutsFlushInterval", LookupEnvDuration("CHECKOUTS_FLUSH_INTERVAL", 10*time.Second), "How ofter checkouts buffer should be flushed.")
 
 	flag.IntVar(&c.SalesCount, "salesCount", LookupEnvInt("SALES_COUNT", 1), "Number of sales to generate (only for items-generator).")
-	flag.IntVar(&c.ItemsPerSale, "itemsPerSale", LookupEnvInt("ITEMS_PER_SALE", model.ItemsPerSale), "Number of items per sale (only for items-generator).")
+	flag.IntVar(&c.ItemsPerSale, "itemsPerSale", LookupEnvInt("ITEMS_PER_SALE", model.ItemsPerSale), "Number of items per sale.")
 
 	flag.Parse()
 

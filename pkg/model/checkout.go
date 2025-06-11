@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	DefaultCheckoutTimeout = 3 * time.Minute
+	DefaultCheckoutTimeout = 30 * time.Second
 	CheckoutCodeLen        = 8
 )
 

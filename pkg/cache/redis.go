@@ -11,7 +11,6 @@ func NewRedis(addr, user, password string) (*redis.Client, func() error, error) 
 		addr = addr + ":6379"
 	}
 
-	// TODO: configure conn pool
 	opts := &redis.Options{
 		Addr:     addr,
 		Username: user,

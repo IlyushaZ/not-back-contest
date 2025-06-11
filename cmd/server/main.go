@@ -77,7 +77,7 @@ func composeServices(db *sql.DB, redis *redis.Client, cfg *config.Config) (item 
 	}
 
 	if cfg.CacheCheckouts {
-		item = service.NewItemCaching(item, redis, cfg.CheckoutTimeout)
+		item = service.NewItemCaching(item, redis, cfg.CheckoutTimeout, cfg.ItemsPerSale)
 	}
 
 	item = &service.ItemLimiting{item, &limiter.Limiter{redis, cfg.PurchasesLimit}, cfg.LimiterFailOpen}

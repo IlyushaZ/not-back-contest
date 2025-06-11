@@ -11,7 +11,7 @@ export let options = {
     // { duration: '10s', target: 1000 },  // Удерживаем пик
     // { duration: '10s', target: 0 },     // Плавное завершение
 
-    { duration: "10s", target: 1000 }, // Удерживаем пик
+    { duration: "20s", target: 1000 }, // Удерживаем пик
   ],
   thresholds: {
     real_errors: ["rate<0.01"],

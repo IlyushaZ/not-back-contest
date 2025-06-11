@@ -1,14 +1,7 @@
 package model
 
 import (
-	"errors"
 	"time"
-)
-
-var (
-	ErrItemUnavailable = errors.New("item is unavailable for checkout")
-	ErrSaleExpired     = errors.New("sale has expired")
-	ErrCheckoutExpired = errors.New("checkout has expired")
 )
 
 type Base struct {

@@ -29,37 +29,28 @@ type ItemCaching struct {
 
 	redis           *redis.Client
 	checkoutTimeout time.Duration
-	localCache      map[int]checkoutCacheVal
-	mu              sync.RWMutex
+	// the more number of instances we have - the more useless this cache becomes,
+	// but it does not give much overhead (i guess so)
+	localCache []checkoutCacheVal
+	// TODO: we can get rid of mutex
+	// or cut down the time spent on locking by sharding local cache into multiple segments.
+	mu sync.RWMutex
 }
 
-func NewItemCaching(i Item, redis *redis.Client, checkoutTimeout time.Duration) *ItemCaching {
+func NewItemCaching(i Item, redis *redis.Client, checkoutTimeout time.Duration, itemsPerSale int) *ItemCaching {
 	ic := &ItemCaching{
 		Item:            i,
 		redis:           redis,
 		checkoutTimeout: checkoutTimeout,
-		localCache:      make(map[int]checkoutCacheVal, 10000),
+		localCache:      make([]checkoutCacheVal, itemsPerSale),
 	}
-
-	go func() {
-		t := time.NewTicker(5 * time.Second)
-		defer t.Stop()
-
-		slog.Info("local cache cleaner started")
-
-		for {
-			select {
-			case <-t.C:
-				ic.cleanupLocalCache()
-			}
-		}
-	}()
 
 	return ic
 }
 
 type checkoutCacheVal struct {
 	until  time.Time
+	itemID int // only for local cache
 	userID int
 	code   string
 }
@@ -75,7 +66,7 @@ func (c checkoutCacheVal) String() string {
 func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code string, err error) {
 	now := time.Now()
 
-	ccv, err := ic.getCheckoutCacheVal(ctx, itemID)
+	ccv, err := ic.getCheckoutCacheVal(ctx, itemID, now)
 	switch {
 	case errors.Is(err, errCacheMiss):
 		// do nothing
@@ -92,10 +83,6 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 			slog.Debug("someone cooked here")
 
 			return "", model.ErrItemUnavailable
-		} else {
-			ic.mu.Lock()
-			delete(ic.localCache, itemID)
-			ic.mu.Unlock()
 		}
 	}
 
@@ -105,10 +92,10 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 		return
 	}
 
-	ccv = checkoutCacheVal{now.Add(ic.checkoutTimeout), userID, code}
+	ccv = checkoutCacheVal{now.Add(ic.checkoutTimeout), itemID, userID, code}
 
 	ic.mu.Lock()
-	ic.localCache[itemID] = ccv
+	ic.localCache[itemID%len(ic.localCache)] = ccv
 	ic.mu.Unlock()
 
 	go func() {
@@ -127,20 +114,24 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 	return
 }
 
-func (ic *ItemCaching) getCheckoutCacheVal(ctx context.Context, itemID int) (checkoutCacheVal, error) {
+func (ic *ItemCaching) getCheckoutCacheVal(ctx context.Context, itemID int, now time.Time) (checkoutCacheVal, error) {
 	var (
-		ccv checkoutCacheVal
-		err error
+		localIdx = itemID % len(ic.localCache)
+		ccv      checkoutCacheVal
+		err      error
 	)
 
 	ic.mu.RLock()
-	ccv, ok := ic.localCache[itemID]
-	if ok {
-		ic.mu.RUnlock()
+	ccv = ic.localCache[localIdx]
+	ic.mu.RUnlock()
+
+	// Check the date as well because when it's more than one instance running,
+	// someone could have already checked out the item through the other instance.
+	// In this case we should go to redis anyway
+	if ccv.itemID == itemID && now.Before(ccv.until) {
+		slog.Debug("found value in local cache", slog.Int("item_id", itemID))
 		return ccv, nil
 	}
-
-	ic.mu.RUnlock()
 
 	key := checkoutCacheKey(itemID)
 
@@ -160,29 +151,15 @@ func (ic *ItemCaching) getCheckoutCacheVal(ctx context.Context, itemID int) (che
 			return ccv, fmt.Errorf("can't parse checkout cache val: %w", err)
 		}
 
+		ccv.itemID = itemID
+
+		// populate local cache
+		ic.mu.Lock()
+		ic.localCache[localIdx] = ccv
+		ic.mu.Unlock()
+
 		return ccv, nil
 	}
-}
-
-func (ic *ItemCaching) cleanupLocalCache() {
-	expired := []int{}
-	now := time.Now()
-
-	ic.mu.RLock()
-	for k, v := range ic.localCache {
-		if v.until.Before(now) {
-			expired = append(expired, k)
-		}
-	}
-	ic.mu.RUnlock()
-
-	for _, id := range expired {
-		ic.mu.Lock()
-		delete(ic.localCache, id)
-		ic.mu.Unlock()
-	}
-
-	slog.Debug("local cache cleaned up", slog.Int("items_deleted", len(expired)))
 }
 
 func checkoutCacheKey(itemID int) string {

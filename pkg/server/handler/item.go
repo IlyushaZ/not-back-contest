@@ -50,8 +50,9 @@ func ItemCheckout(svc service.Item) http.HandlerFunc {
 
 		code, err := svc.Checkout(ctx, userID, itemID)
 		switch {
-		case errors.Is(err, model.ErrSaleExpired) || errors.Is(err, model.ErrItemUnavailable):
-			http.Error(w, err.Error(), http.StatusConflict)
+		case errors.Is(err, model.ErrItemUnavailable):
+			msg := fmt.Sprintf("%s: either because it's already checked out or because the sale is not active", err.Error())
+			http.Error(w, msg, http.StatusConflict)
 			return
 		case errors.Is(err, service.ErrLimitExceeded):
 			http.Error(w, err.Error(), http.StatusTooManyRequests)
@@ -91,10 +92,8 @@ func ItemPurchase(svc service.Item) http.HandlerFunc {
 
 		err := svc.Purchase(r.Context(), cc)
 		switch {
-		case errors.Is(err, model.ErrCheckoutExpired), errors.Is(err, model.ErrSaleExpired):
-			http.Error(w, err.Error(), http.StatusConflict)
 		case errors.Is(err, database.ErrNotFound):
-			http.Error(w, err.Error(), http.StatusNotFound)
+			http.Error(w, "no check out for given code found", http.StatusNotFound)
 		case errors.Is(err, service.ErrLimitExceeded):
 			http.Error(w, err.Error(), http.StatusTooManyRequests)
 		case err != nil:
