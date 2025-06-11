@@ -45,7 +45,7 @@ func main() {
 	}
 	defer closeRedis()
 
-	itemSvc, saleSvc := composeServices(db, redis, cfg.LimiterFailOpen, cfg.PurchasesLimit, cfg.CheckoutTimeout, cfg.CacheCheckouts)
+	itemSvc, saleSvc := composeServices(db, redis, cfg)
 
 	srv, err := server.New(cfg.ListenAddr, itemSvc, saleSvc)
 	if err != nil {
@@ -67,23 +67,18 @@ func main() {
 	srv.Shutdown(ctx)
 }
 
-func composeServices(
-	db *sql.DB,
-	redis *redis.Client,
-	failOpen bool,
-	purchasesLimit int,
-	checkoutTimeout time.Duration,
-	cacheCheckouts bool,
-) (item service.Item, sale service.Sale) {
+func composeServices(db *sql.DB, redis *redis.Client, cfg *config.Config) (item service.Item, sale service.Sale) {
 	item = &service.ItemGeneric{
-		&database.ItemDatabase{db}, checkoutTimeout,
+		&database.ItemDatabase{db},
+		database.NewCheckoutBatchingDatabase(db, cfg.CheckoutsBatchSize, cfg.CheckoutsFlushInterval),
+		cfg.CheckoutTimeout,
 	}
 
-	if cacheCheckouts {
-		item = &service.ItemCaching{item, redis, checkoutTimeout}
+	if cfg.CacheCheckouts {
+		item = &service.ItemCaching{item, redis, cfg.CheckoutTimeout}
 	}
 
-	item = &service.ItemLimiting{item, &limiter.Limiter{redis, purchasesLimit}, failOpen}
+	item = &service.ItemLimiting{item, &limiter.Limiter{redis, cfg.PurchasesLimit}, cfg.LimiterFailOpen}
 	item = &service.ItemLogging{item}
 
 	sale = &service.SaleGeneric{

@@ -12,6 +12,8 @@ import (
 
 const cacheKeyPrefix = "limiter:"
 
+const redisTimeout = 300 * time.Millisecond
+
 type Limiter struct {
 	Redis *redis.Client
 	Limit int
@@ -19,6 +21,10 @@ type Limiter struct {
 
 func (l *Limiter) Increment(ctx context.Context, userID int) (int, error) {
 	key := userCounterKey(userID)
+
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, redisTimeout)
+	defer cancel()
 
 	val, err := l.Redis.Incr(ctx, key).Result()
 	if err != nil {
@@ -35,6 +41,10 @@ func (l *Limiter) Increment(ctx context.Context, userID int) (int, error) {
 }
 
 func (l *Limiter) LimitExceeded(ctx context.Context, userID int) (bool, error) {
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, redisTimeout)
+	defer cancel()
+
 	c, err := l.Redis.Get(ctx, userCounterKey(userID)).Int()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {

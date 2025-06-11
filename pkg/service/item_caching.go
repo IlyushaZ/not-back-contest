@@ -43,7 +43,10 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 	now := time.Now()
 	key := checkoutCacheKey(itemID)
 
-	val, err := ic.Redis.Get(ctx, key).Result()
+	redisCtx, cancel := context.WithTimeout(ctx, time.Millisecond*300)
+	defer cancel()
+
+	val, err := ic.Redis.Get(redisCtx, key).Result()
 	switch {
 	case err == redis.Nil:
 		// do nothing
@@ -76,9 +79,12 @@ func (ic *ItemCaching) Checkout(ctx context.Context, userID, itemID int) (code s
 	ccv := checkoutCacheVal{now.Add(ic.CheckoutTimeout), userID, code}
 
 	go func() {
+		redisCtx, cancel := context.WithTimeout(context.TODO(), time.Second)
+		defer cancel()
+
 		// i guess we can not really concern about atomicity here,
 		// because only one user buying this item will reach this code section at a time
-		if err = ic.Redis.Set(ctx, key, ccv.String(), ic.CheckoutTimeout).Err(); err != nil {
+		if err = ic.Redis.Set(redisCtx, key, ccv.String(), ic.CheckoutTimeout).Err(); err != nil {
 			slog.Error("can't set checkout info in redis", slog.Any("error", err))
 		}
 	}()

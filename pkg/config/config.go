@@ -25,6 +25,9 @@ type Config struct {
 	PurchasesLimit  int
 	CheckoutTimeout time.Duration
 
+	CheckoutsBatchSize     int
+	CheckoutsFlushInterval time.Duration
+
 	// Items generator params
 	SalesCount   int
 	ItemsPerSale int
@@ -50,8 +53,11 @@ func New() *Config {
 	flag.IntVar(&c.PurchasesLimit, "purchasesLimit", LookupEnvInt("PURCHASES_LIMIT", 10), "Number of purchases that single user can make within one sale.")
 	flag.DurationVar(&c.CheckoutTimeout, "checkoutTimeout", LookupEnvDuration("CHECKOKUT_TIMEOUT", model.DefaultCheckoutTimeout), "How long item can be reserved by user in format that can be parsed by go's time.ParseDuration.")
 
+	flag.IntVar(&c.CheckoutsBatchSize, "checkoutsBatchSize", LookupEnvInt("CHECKOUTS_BATCH_SIZE", 500), "Number of checkout attempts to be stored in buffer before being flushed.")
+	flag.DurationVar(&c.CheckoutsFlushInterval, "checkoutsFlushInterval", LookupEnvDuration("CHECKOUTS_FLUSH_INTERVAL", 10*time.Second), "How ofter checkouts buffer should be flushed.")
+
 	flag.IntVar(&c.SalesCount, "salesCount", LookupEnvInt("SALES_COUNT", 1), "Number of sales to generate (only for items-generator).")
-	flag.IntVar(&c.ItemsPerSale, "itemsPerSale", LookupEnvInt("ITEMS_PER_SALE", 10000), "Number of items per sale (only for items-generator).")
+	flag.IntVar(&c.ItemsPerSale, "itemsPerSale", LookupEnvInt("ITEMS_PER_SALE", model.ItemsPerSale), "Number of items per sale (only for items-generator).")
 
 	flag.Parse()
 

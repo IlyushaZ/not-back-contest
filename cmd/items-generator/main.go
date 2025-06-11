@@ -46,7 +46,7 @@ func generate(db *sql.DB) error {
 
 	for i := 0; i < cfg.SalesCount; i++ {
 		start := now.Truncate(time.Hour)
-		end := start.Add(time.Hour)
+		end := start.Add(model.SaleDuration)
 
 		err := database.WithTx(db, func(tx *sql.Tx) error {
 			const saleExists = `
@@ -79,14 +79,14 @@ func generate(db *sql.DB) error {
 				return fmt.Errorf("can't insert sale: %w", err)
 			}
 
-			stmt, err := tx.Prepare(`insert into items (sale_id, name, created_at) values ($1, $2, $3)`)
+			stmt, err := tx.Prepare(`insert into items (sale_id, name, created_at, sale_start, sale_end) values ($1, $2, $3, $4, $5)`)
 			if err != nil {
 				return fmt.Errorf("can't prepare stmt for inserting item: %w", err)
 			}
 
 			for j := 0; j < cfg.ItemsPerSale; j++ {
-				item := generateItem(saleID, now)
-				if _, err := stmt.Exec(item.SaleID, item.Name, now); err != nil {
+				item := generateItem(saleID, start, end, now)
+				if _, err := stmt.Exec(item.SaleID, item.Name, now, item.SaleStart, item.SaleEnd); err != nil {
 					return fmt.Errorf("can't insert item: %w", err)
 				}
 
@@ -117,14 +117,16 @@ func generate(db *sql.DB) error {
 	return nil
 }
 
-func generateItem(saleID int, createdAt time.Time) *model.Item {
+func generateItem(saleID int, saleStart, saleEnd, createdAt time.Time) *model.Item {
 	adj := adjectives[rand.Intn(len(adjectives))]
 	category := categories[rand.Intn(len(categories))]
 	item := items[rand.Intn(len(items))]
 
 	return &model.Item{
-		Base:   model.Base{CreatedAt: createdAt},
-		SaleID: saleID,
-		Name:   fmt.Sprintf("%s %s %s", adj, category, item),
+		Base:      model.Base{CreatedAt: createdAt},
+		SaleID:    saleID,
+		SaleStart: saleStart,
+		SaleEnd:   saleEnd,
+		Name:      fmt.Sprintf("%s %s %s", adj, category, item),
 	}
 }

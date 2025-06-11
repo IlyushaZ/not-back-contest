@@ -12,6 +12,8 @@ create table items (
     name text not null,
     created_at timestamptz not null,
     sale_id int not null references sales (id) on delete cascade,
+    sale_start timestamptz not null,
+    sale_end timestamptz not null,
     sold boolean not null default false,
     reserved_until timestamptz,
     reserved_by int, -- user_id

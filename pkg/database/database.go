@@ -21,7 +21,7 @@ func New(addr, database, user, password string) (db *sql.DB, close func() error,
 		return nil, nil, err
 	}
 
-	db.SetMaxOpenConns(200)
+	db.SetMaxOpenConns(250)
 	db.SetMaxIdleConns(50)
 	db.SetConnMaxLifetime(15 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
