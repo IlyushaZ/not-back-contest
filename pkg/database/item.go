@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -144,17 +143,4 @@ func (i *ItemDatabase) GetPage(ctx context.Context, num, size int) ([]model.Item
 	}
 
 	return items, total, nil
-}
-
-func shouldLogCheckout(err error) bool {
-	return err == nil || errOneOf(err, model.ErrSaleExpired, model.ErrItemUnavailable)
-}
-
-func errOneOf(err error, targets ...error) bool {
-	for _, target := range targets {
-		if errors.Is(err, target) {
-			return true
-		}
-	}
-	return false
 }

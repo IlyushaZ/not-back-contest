@@ -2,7 +2,12 @@ package model
 
 import (
 	"database/sql"
+	"errors"
 	"time"
+)
+
+var (
+	ErrItemUnavailable = errors.New("item is unavailable for checkout")
 )
 
 type Item struct {

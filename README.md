@@ -13,9 +13,11 @@ Redis is also used to enforce per-user purchase limits during each flash sale by
 
 Items are populated by a cron job that runs once per hour as a single instance, generating exactly 10,000 items for the current sale window (or N sales forward, which is configured by a parameter). While a more robust solution could involve distributed workers with coordination or leader election to ensure consistency and fault tolerance, I opted for the simpler approach **due to my laziness** and lack of time.
 
-When a user performs a checkout, the selected item is **reserved exclusively for that user for a limited time** — by default, 3 minutes (configurable via settings). During this reservation window, the item can be purchased using the issued checkout code. If the reservation expires before the user completes the purchase, the item becomes available for others to check out. If a user requests the same item multiple times during the active reservation period, they will receive the same checkout code as initially issued. This ensures idempotent behavior and prevents duplicate reservations for the same item.
+When a user performs a checkout, the selected item is **reserved exclusively for that user for a limited time** — by default, 3 minutes (configurable via settings). During this reservation window, the item can be purchased using the issued checkout code. If the reservation expires before the user completes the purchase, the item becomes available for others to check out.
 
 I suggest you to get familiar with the code because it provides many comments explaining why certain things are implemented and simplified in such way.
+
+The insertion of checkout attempts is implemented using batch writes, which means that item status updates and attempt records are not persisted transactionally. This trade-off was made intentionally to minimize database load and improve performance under high traffic, especially during peak flash sale activity.
 
 ## API description
 
@@ -37,9 +39,13 @@ The server will be accessible on port `:8000`.
 -cacheCheckouts
    	Set to cache limiter info. May be useful when single item is requested many times.
 -checkoutTimeout duration
-   	How long item can be reserved by user in format that can be parsed by go's time.ParseDuration. (default 3m0s)
+   	How long item can be reserved by user in format that can be parsed by go's time.ParseDuration. (default 30s)
+-checkoutsBatchSize int
+   	Number of checkout attempts to be stored in buffer before being flushed. (default 500)
+-checkoutsFlushInterval duration
+   	How ofter checkouts buffer should be flushed. (default 10s)
 -itemsPerSale int
-   	Number of items per sale. (default 10000)
+   	Number of items per sale (only for items-generator). (default 10000)
 -limiterFailOpen
    	Set to make limiter allow request if failed to check limits.
 -listenAddr string
@@ -63,7 +69,7 @@ The server will be accessible on port `:8000`.
 -redisUser string
    	Redis user.
 -salesCount int
-   	Number of sales to generate. (default 1)
+   	Number of sales to generate (only for items-generator). (default 1)
 ```
 
 ## Project structure
@@ -74,13 +80,15 @@ Unfortunately, the checkout logic had to be placed in the database package, as i
 ## Performance tests
 I've only implemented basic test on checkout due to lack of time 👉👈. But I am pretty sure my app is ⚡***BLAZINGLY FAST***⚡.
 
-To run it, you will need to install [vegeta](https://github.com/tsenart/vegeta) and run:
+To run it, you will need to install [k6](https://github.com/grafana/k6) and run:
 ```
-chmod +x ./test/generate_targets.sh ./test/test_checkout.sh
-./test/test_checkout.sh
+docker compose --profile perftest up -d
+k6 test/script.js
 ```
 
-It starts the service with dependencies via `docker compose` and runs script `test/generate_targets.sh` which generate URLs with different `item_id`'s and `user_id`'s. It generates `item_id`'s in such way that some identifiers repeat, which, IMO, looks like real usage. After that, `vegeta attack` is run with generated `targets.txt` given as `-target` argument.
-
-## Easter egg
-Press `ctrl-shift-f` in your IDE to see the things I didn't have enough time to implement.
+Or, if you want to run the service itself outside of container, you can do the following:
+```
+docker compose --profile perftest up -d postgres redis migrate items-generator
+go run ./cmd/server --postgresAddr=localhost:5432 --cacheCheckouts --logLevel=INFO
+k6 test/script.js
+```
