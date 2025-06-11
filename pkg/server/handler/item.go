@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/IlyushaZ/not-back-contest/pkg/database"
 	"github.com/IlyushaZ/not-back-contest/pkg/model"
@@ -33,7 +35,20 @@ func ItemCheckout(svc service.Item) http.HandlerFunc {
 			return
 		}
 
-		code, err := svc.Checkout(r.Context(), userID, itemID)
+		if userID == 0 {
+			http.Error(w, fmt.Sprintf("invalid user_id: %d", 0), http.StatusBadRequest)
+			return
+		}
+
+		if itemID == 0 {
+			http.Error(w, fmt.Sprintf("invalid item_id: %d", 0), http.StatusBadRequest)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), time.Second)
+		defer cancel()
+
+		code, err := svc.Checkout(ctx, userID, itemID)
 		switch {
 		case errors.Is(err, model.ErrSaleExpired) || errors.Is(err, model.ErrItemUnavailable):
 			http.Error(w, err.Error(), http.StatusConflict)

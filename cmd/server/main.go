@@ -68,14 +68,16 @@ func main() {
 }
 
 func composeServices(db *sql.DB, redis *redis.Client, cfg *config.Config) (item service.Item, sale service.Sale) {
+	idb, _ := database.NewItemDatabase(db)
+
 	item = &service.ItemGeneric{
-		&database.ItemDatabase{db},
+		idb,
 		database.NewCheckoutBatchingDatabase(db, cfg.CheckoutsBatchSize, cfg.CheckoutsFlushInterval),
 		cfg.CheckoutTimeout,
 	}
 
 	if cfg.CacheCheckouts {
-		item = &service.ItemCaching{item, redis, cfg.CheckoutTimeout}
+		item = service.NewItemCaching(item, redis, cfg.CheckoutTimeout)
 	}
 
 	item = &service.ItemLimiting{item, &limiter.Limiter{redis, cfg.PurchasesLimit}, cfg.LimiterFailOpen}

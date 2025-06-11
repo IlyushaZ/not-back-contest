@@ -21,9 +21,9 @@ func New(addr, database, user, password string) (db *sql.DB, close func() error,
 		return nil, nil, err
 	}
 
-	db.SetMaxOpenConns(250)
-	db.SetMaxIdleConns(50)
-	db.SetConnMaxLifetime(15 * time.Minute)
+	db.SetMaxOpenConns(60)
+	db.SetMaxIdleConns(30)
+	db.SetConnMaxLifetime(10 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
 	if err := db.Ping(); err != nil {

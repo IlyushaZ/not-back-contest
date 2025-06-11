@@ -28,7 +28,9 @@ func New(addr string, itemSvc service.Item, saleSvc service.Sale) (*http.Server,
 	}
 
 	return &http.Server{
-		Addr:    addr,
-		Handler: chain.Then(mux),
+		Addr:         addr,
+		Handler:      chain.Then(mux),
+		WriteTimeout: writeTimeout,
+		ReadTimeout:  readTimeout,
 	}, nil
 }

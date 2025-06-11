@@ -1,12 +1,8 @@
 services:
   postgres:
     image: postgres:17.4
-    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     ports:
       - "5432:5432"
-    volumes:
-      - ./config/postgresql.conf:/etc/postgresql/postgresql.conf
-      # - ./data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=develop
       - POSTGRES_PASSWORD=develop
@@ -21,6 +17,7 @@ services:
 
   redis:
     image: redis:7.0
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
       - "6379:6379"
     networks:

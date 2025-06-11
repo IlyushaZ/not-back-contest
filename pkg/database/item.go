@@ -18,64 +18,93 @@ type ItemRepository interface {
 }
 
 type ItemDatabase struct {
-	DB *sql.DB
+	db    *sql.DB
+	stmts map[string]*sql.Stmt
 }
 
-func (i *ItemDatabase) Checkout(ctx context.Context, userID, itemID int, code model.CheckoutCode, checkoutTimeout time.Duration) error {
-	return WithTx(i.DB, func(tx *sql.Tx) (err error) {
-		now := time.Now()
+func NewItemDatabase(db *sql.DB) (*ItemDatabase, error) {
+	idb := &ItemDatabase{
+		db,
+		make(map[string]*sql.Stmt),
+	}
 
-		const q = `
-			update items
-			set reserved_by = $1, reserved_until = $2, code = $3
-			where id = $4
-			  and not sold
-			  and sale_start < $5 and sale_end > $5
-			  and (reserved_until is null or reserved_until < $5)
-		`
-
-		res, err := tx.ExecContext(ctx, q, userID, now.Add(checkoutTimeout), code.Rand, itemID, now)
+	for _, s := range stmts {
+		prepared, err := db.Prepare(s.query)
 		if err != nil {
-			return fmt.Errorf("can't update item: %w", err)
+			return nil, fmt.Errorf("can't prepare query '%s': %w", s.name, err)
 		}
 
-		if affected, err := res.RowsAffected(); err != nil {
-			return fmt.Errorf("can't get affected rows: %w", err)
-		} else if affected != 1 {
-			return model.ErrItemUnavailable
-		}
+		idb.stmts[s.name] = prepared
+	}
 
-		return nil
-	})
+	return idb, nil
+}
+
+type preparedStmt struct {
+	name  string
+	query string
+}
+
+var (
+	stmts = []preparedStmt{
+		{
+			name: "checkout_item",
+			query: `
+				update items
+				set reserved_by = $1, reserved_until = $2, code = $3
+				where id = $4
+				  and not sold
+				  and sale_start < $5 and sale_end > $5
+				  and (reserved_until is null or reserved_until < $5)
+			`,
+		},
+		{
+			name: "purchase_item",
+			query: `
+				update items
+				set sold = true
+				where id = $1
+				  and not sold
+				  and reserved_by = $2
+				  and code = $3
+				  and reserved_until > $4
+				  and sale_start < $4
+				  and sale_end > $4
+			`,
+		},
+	}
+)
+
+func (i *ItemDatabase) Checkout(ctx context.Context, userID, itemID int, code model.CheckoutCode, checkoutTimeout time.Duration) error {
+	now := time.Now()
+
+	res, err := i.stmts["checkout_item"].ExecContext(ctx, userID, now.Add(checkoutTimeout), code.Rand, itemID, now)
+	if err != nil {
+		return fmt.Errorf("can't update item: %w", err)
+	}
+
+	if affected, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("can't get affected rows: %w", err)
+	} else if affected != 1 {
+		return model.ErrItemUnavailable
+	}
+
+	return nil
 }
 
 func (i *ItemDatabase) Purchase(ctx context.Context, code model.CheckoutCode) error {
-	return WithTx(i.DB, func(tx *sql.Tx) error {
-		const q = `
-			update items
-			set sold = true
-			where id = $1
-  			  and not sold
-			  and reserved_by = $2
-			  and code = $3
-			  and reserved_until > $4
-			  and sale_start < $4
-			  and sale_end > $4
-		`
+	res, err := i.stmts["purchase_item"].ExecContext(ctx, code.ItemID, code.UserID, code.Rand, time.Now())
+	if err != nil {
+		return fmt.Errorf("can't update item's status: %w", err)
+	}
 
-		res, err := tx.ExecContext(ctx, q, code.ItemID, code.UserID, code.Rand, time.Now())
-		if err != nil {
-			return fmt.Errorf("can't update item's status: %w", err)
-		}
+	if affected, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("can't get affected rows: %w", err)
+	} else if affected == 0 {
+		return fmt.Errorf("either item or checkout does not exist: %w", ErrNotFound)
+	}
 
-		if affected, err := res.RowsAffected(); err != nil {
-			return fmt.Errorf("can't get affected rows: %w", err)
-		} else if affected == 0 {
-			return fmt.Errorf("either item or checkout does not exist: %w", ErrNotFound)
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (i *ItemDatabase) GetPage(ctx context.Context, num, size int) ([]model.Item, int, error) {
@@ -83,7 +112,7 @@ func (i *ItemDatabase) GetPage(ctx context.Context, num, size int) ([]model.Item
 		select count(*) from items
 	`
 	var total int
-	if err := i.DB.QueryRowContext(ctx, q).Scan(&total); err != nil {
+	if err := i.db.QueryRowContext(ctx, q).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("can't count items: %w", err)
 	}
 
@@ -94,7 +123,7 @@ func (i *ItemDatabase) GetPage(ctx context.Context, num, size int) ([]model.Item
 		order by id
 		limit $1 offset $2
 	`
-	rows, err := i.DB.QueryContext(ctx, q, size, offset)
+	rows, err := i.db.QueryContext(ctx, q, size, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("can't query items: %w", err)
 	}
