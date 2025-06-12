@@ -13,7 +13,7 @@ Redis is also used to enforce per-user purchase limits during each flash sale by
 
 Items are populated by a cron job that runs once per hour as a single instance, generating exactly 10,000 items for the current sale window (or N sales forward, which is configured by a parameter). While a more robust solution could involve distributed workers with coordination or leader election to ensure consistency and fault tolerance, I opted for the simpler approach **due to my laziness** and lack of time.
 
-When a user performs a checkout, the selected item is **reserved exclusively for that user for a limited time** — by default, 3 minutes (configurable via settings). During this reservation window, the item can be purchased using the issued checkout code. If the reservation expires before the user completes the purchase, the item becomes available for others to check out.
+When a user performs a checkout, the selected item is **reserved exclusively for that user for a limited time** — by default, 30 seconds (configurable via settings). During this reservation window, the item can be purchased using the issued checkout code. If the reservation expires before the user completes the purchase, the item becomes available for others to check out.
 
 I suggest you to get familiar with the code because it provides many comments explaining why certain things are implemented and simplified in such way.
 
